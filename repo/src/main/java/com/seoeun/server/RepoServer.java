@@ -1,7 +1,8 @@
 package com.seoeun.server;
 
 import com.seoeun.AvroRepoException;
-import com.sun.jersey.spi.container.servlet.ServletContainer;
+import com.seoeun.rest.RESTRepository;
+import org.glassfish.jersey.servlet.ServletContainer;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.handler.ContextHandlerCollection;
 import org.mortbay.jetty.servlet.Context;
@@ -95,7 +96,7 @@ public class RepoServer implements AppService {
         Context root = new Context(contexts, "/repo", Context.SESSIONS);
         ServletHolder jerseyServlet = new ServletHolder(ServletContainer.class);
         jerseyServlet.setInitOrder(0);
-        jerseyServlet.setInitParameter("com.sun.jersey.config.property.packages", "com.seoeun.rest");
+        jerseyServlet.setInitParameter("jersey.config.server.provider.classnames", RESTRepository.class.getCanonicalName());
 
         root.addServlet(jerseyServlet, "/*");
     }

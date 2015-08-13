@@ -1,14 +1,17 @@
 package com.seoeun.client;
 
 import com.seoeun.schemaregistry.SchemaInfo;
-import com.sun.jersey.api.client.Client;
-import com.sun.jersey.api.client.ClientResponse;
-import com.sun.jersey.api.representation.Form;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Form;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
@@ -21,7 +24,7 @@ public class RepoClient {
 
     public RepoClient(String url) {
         this.url = url;
-        this.client = Client.create();
+        this.client = ClientBuilder.newClient();
     }
 
     /**
@@ -33,13 +36,14 @@ public class RepoClient {
      */
     public String register(String topicName, String schema) {
         Form form = new Form();
-        form.add("subject", topicName);
-        form.add("schema", schema);
+        form.param("subject", topicName);
+        form.param("schema", schema);
 
-        ClientResponse response = client.resource(url).path("subjects/" + topicName)
-                .type("application/json").post(ClientResponse.class, form);
+        Response response = client.target(url).path("subjects/{subject}").resolveTemplate("subject", topicName)
+                .request(MediaType.APPLICATION_JSON_TYPE).post(Entity.entity(form, MediaType.APPLICATION_FORM_URLENCODED_TYPE));
+
         if (response.getStatus() == Response.Status.OK.getStatusCode()) {
-            String id = response.getEntity(String.class);
+            String id = response.readEntity(String.class);
             return id;
         } else {
             response.close();
@@ -53,12 +57,11 @@ public class RepoClient {
      * @return list<SchemaInfo>
      */
     public List<SchemaInfo> getSchemaLatestAll() {
-        ClientResponse response = client.resource(url).path("subjects/")
-                .type(MediaType.TEXT_PLAIN_TYPE).get(ClientResponse.class);
+        Response response = client.target(url).path("subjects/").request(MediaType.TEXT_PLAIN_TYPE).get();
 
         if (response.getStatus() == Response.Status.OK.getStatusCode()) {
             List<SchemaInfo> schemaInfos = new ArrayList<SchemaInfo>();
-            String[] subjects = response.getEntity(String.class).split("\n");
+            String[] subjects = response.readEntity(String.class).split("\n");
             for (String subject : subjects) {
                 JSONObject jsonObject = (JSONObject) JSONValue.parse(subject);
                 SchemaInfo schemaInfo = new SchemaInfo();
@@ -84,16 +87,17 @@ public class RepoClient {
      * @return schemaInfo
      */
     public SchemaInfo getSchemaBySubject(String subject) {
-        ClientResponse response = client.resource(url).path("subjects/" + subject)
-                .accept(MediaType.APPLICATION_JSON_TYPE).get(ClientResponse.class);
+        WebTarget target = client.target(url).path("subjects/{subject}").resolveTemplate("subject", subject);
+        URI uri = target.getUri();
+        Response response = client.target(url).path("subjects/{subject}").resolveTemplate("subject", subject)
+                .request("application/json").get();
         if (response.getStatus() == Response.Status.OK.getStatusCode()) {
-            SchemaInfo schemaInfo = response.getEntity(SchemaInfo.class);
+            SchemaInfo schemaInfo = response.readEntity(SchemaInfo.class);
             return schemaInfo;
         } else {
             response.close();
             return null;
         }
-
     }
 
     /**
@@ -104,11 +108,12 @@ public class RepoClient {
      * @return schemaInfo
      */
     public SchemaInfo getSchemaBySubjectAndId(String subject, String id) {
-        ClientResponse response = client.resource(url).path("subjects/" + subject + "/ids/" + id)
-                .accept(MediaType.APPLICATION_JSON_TYPE).get(ClientResponse.class);
+        Response response = client.target(url).path("subjects/{subject}/ids/{id}").resolveTemplate("subject", subject)
+                .resolveTemplate("id", id)
+                .request("application/json").get();
 
         if (response.getStatus() == Response.Status.OK.getStatusCode()) {
-            SchemaInfo schemaInfo = response.getEntity(SchemaInfo.class);
+            SchemaInfo schemaInfo = response.readEntity(SchemaInfo.class);
             return schemaInfo;
         } else {
             response.close();
@@ -123,11 +128,10 @@ public class RepoClient {
      * @return schemaInfo
      */
     public SchemaInfo getSchemaById(String id) {
-        ClientResponse response = client.resource(url).path("schema/ids/" + id)
-                .accept(MediaType.APPLICATION_JSON_TYPE).get(ClientResponse.class);
-
+        Response response = client.target(url).path("schema/ids/{id}").resolveTemplate("id", id)
+                .request("application/json").get();
         if (response.getStatus() == Response.Status.OK.getStatusCode()) {
-            SchemaInfo schemaInfo = response.getEntity(SchemaInfo.class);
+            SchemaInfo schemaInfo = response.readEntity(SchemaInfo.class);
             return schemaInfo;
         } else {
             response.close();
