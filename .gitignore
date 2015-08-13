@@ -1,0 +1,18 @@
+# Maven
+target
+
+# IntelliJ
+*.iml
+*.ipr
+*.iws
+.idea
+
+# Eclipse
+.classpath
+.project
+.settings
+
+# derby
+derby.log
+repo/derby.log
+
