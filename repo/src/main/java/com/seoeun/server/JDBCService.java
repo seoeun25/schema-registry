@@ -33,6 +33,8 @@ public class JDBCService implements AppService {
     public static final String CONF_VALIDATE_DB_CONN = CONF_PREFIX + "validate.db.connection";
     public static final String CONF_VALIDATE_DB_CONN_EVICTION_INTERVAL = CONF_PREFIX + "validate.db.connection.eviction.interval";
     public static final String CONF_VALIDATE_DB_CONN_EVICTION_NUM = CONF_PREFIX + "validate.db.connection.eviction.num";
+    public static final String CONF_VALIDATE_DB_CONN_QUERY = CONF_PREFIX + "validate.db.connection.query";
+
     public static String persistentUnit = "master-mysql";
     private static Logger LOG = LoggerFactory.getLogger(JDBCService.class);
     private EntityManagerFactory factory;
@@ -67,6 +69,7 @@ public class JDBCService implements AppService {
         boolean validateDbConn = Boolean.parseBoolean(RepoContext.getContext().getConfig(CONF_VALIDATE_DB_CONN));
         String evictionInterval = RepoContext.getContext().getConfig(CONF_VALIDATE_DB_CONN_EVICTION_INTERVAL).trim();
         String evictionNum = RepoContext.getContext().getConfig(CONF_VALIDATE_DB_CONN_EVICTION_NUM).trim();
+        String validationQuery = RepoContext.getContext().getConfig(CONF_VALIDATE_DB_CONN_QUERY);
 
         if (!url.startsWith("jdbc:")) {
             throw new AvroRepoException("invalid JDBC URL, must start with 'jdbc:'");
@@ -79,15 +82,18 @@ public class JDBCService implements AppService {
         String connProps = "DriverClassName={0},Url={1},Username={2},Password={3},MaxActive={4}";
         connProps = MessageFormat.format(connProps, driver, url, user, password, maxConn);
         Properties props = new Properties();
-        if (autoSchemaCreation) {
+        if (autoSchemaCreation || validateDbConn) {
             connProps += ",TestOnBorrow=true,TestOnReturn=true,TestWhileIdle=true";
-            props.setProperty("openjpa.jdbc.SynchronizeMappings", "buildSchema(ForeignKeys=true)");
-        } else if (validateDbConn) {
-            String interval = "timeBetweenEvictionRunsMillis=" + evictionInterval;
-            String num = "numTestsPerEvictionRun=" + evictionNum;
-            connProps += ",TestOnBorrow=true,TestOnReturn=true,TestWhileIdle=true," + interval + "," + num;
-            connProps += ",ValidationQuery=select count(*) from VALIDATE_CONN";
-            connProps = MessageFormat.format(connProps, dbSchema);
+            if (validateDbConn) {
+                String interval = "timeBetweenEvictionRunsMillis=" + evictionInterval;
+                String num = "numTestsPerEvictionRun=" + evictionNum;
+                connProps += "," + interval + "," + num;
+                connProps += ",ValidationQuery=" + validationQuery;
+                connProps = MessageFormat.format(connProps, dbSchema);
+            }
+            if (autoSchemaCreation) {
+                props.setProperty("openjpa.jdbc.SynchronizeMappings", "buildSchema(ForeignKeys=true)");
+            }
         } else {
             connProps += ",TestOnBorrow=false,TestOnReturn=false,TestWhileIdle=false";
         }
